@@ -1,5 +1,7 @@
 import UserModel from "../model/User.model.js";
 import bcrypt from 'bcrypt';
+import jwt, { sign } from 'jsonwebtoken';
+import ENV from '../config.js'
 
 /** POST: http://localhost:8080/api/register 
  * @param : {
@@ -82,7 +84,38 @@ export async function register(req,res){
 }
 */
 export async function login(req, res){
-    res.json('login route');
+    const { username, password } = req.body;
+
+    try {
+        UserModel.findOne({ username })
+            .then(user => {
+                bcrypt.compare(password, user.password)
+                    .then(passwordCheck => {
+                        if(!passwordCheck) return res.status(400).send({ error: "Don't have password"})
+
+                        // create jwt token
+                        const token = jwt.sign({
+                                        userId: user._id,
+                                        username: user.username
+                                    }, ENV.JWT_SECRET, {expiresIn: "24h"});
+                        
+                        return res.status(200).send({
+                            msg: "Login Successful...!",
+                            username: user.username,
+                            token
+                        });
+                       
+                    })
+                    .catch(error => {
+                        return res .status(400).send({ error: "Passwords don't match"})
+                    })
+            })
+            .catch(error => {
+                return res.status(404).send({ error: "Username nt found"});
+            })
+    } catch (error) {
+        return res.status(500).send({ error }); 
+    }
 }
 
 /** GET: http://localhost:8080/api/user/example123 */
